@@ -384,7 +384,7 @@ summary {
 <pre class="r"><code>library(readr)
 library(ggplot2)
 library(dplyr)
-library(lubridate)</code></pre>
+library(stringr)</code></pre>
 <p>From the data set we are interested only in the following columns:</p>
 <ul>
 <li>STATE - code abbreviating the state</li>
@@ -395,8 +395,21 @@ library(lubridate)</code></pre>
 <p>Data loading &amp; column selection (we assume that the download dataset is present in the working folder):</p>
 <pre class="r"><code>all_weather_data &lt;- read_csv(&quot;repdata_data_StormData.csv.bz2&quot;)
 filtered_cols_data &lt;- all_weather_data %&gt;% select(STATE, BGN_DATE, END_DATE, 
+                                                  EVTYPE,
                                                   PROPDMG, PROPDMGEXP, CROPDMG, 
                                                   CROPDMGEXP, INJURIES, FATALITIES)</code></pre>
+<p>The EVTYPE column contains the “Summary…” rows which should be deleted. Additionaly event names are transformed to the uppercase:</p>
+<pre class="r"><code>head(filtered_cols_data %&gt;% filter (str_detect(EVTYPE, &quot;[Ss]ummary&quot;)) %&gt;% select(EVTYPE))</code></pre>
+<pre><code>## # A tibble: 6 x 1
+##   EVTYPE              
+##   &lt;chr&gt;               
+## 1 Summary Jan 17      
+## 2 Summary of March 14 
+## 3 Summary of March 23 
+## 4 Summary of March 24 
+## 5 Summary of April 3rd
+## 6 Summary of April 12</code></pre>
+<pre class="r"><code>filtered_cols_data &lt;- filtered_cols_data %&gt;% filter (!str_detect(EVTYPE, &quot;[Ss]ummary&quot;)) %&gt;% mutate(EVTYPE = toupper(EVTYPE))</code></pre>
 <p>According to the documentation of the dataset the COLNAME*EXP columns contain the multiplier for the COLNAME values. This data contains not only tidy values:</p>
 <pre class="r"><code>print( unique(filtered_cols_data$PROPDMGEXP))</code></pre>
 <pre><code>##  [1] &quot;K&quot; &quot;M&quot; NA  &quot;B&quot; &quot;m&quot; &quot;+&quot; &quot;0&quot; &quot;5&quot; &quot;6&quot; &quot;?&quot; &quot;4&quot; &quot;2&quot; &quot;3&quot; &quot;h&quot; &quot;7&quot; &quot;H&quot; &quot;-&quot; &quot;1&quot; &quot;8&quot;</code></pre>
@@ -419,26 +432,26 @@ filtered_cols_data &lt;- all_weather_data %&gt;% select(STATE, BGN_DATE, END_DAT
 filtered_cols_data &lt;- filtered_cols_data %&gt;% mutate(ALL_CROPDMG = CROPDMG)</code></pre>
 <p>We can briefly verify our transformations are correct:</p>
 <pre class="r"><code>head(filtered_cols_data %&gt;% filter(PROPDMG &gt; 0) %&gt;% select(-STATE, -BGN_DATE, -END_DATE))</code></pre>
-<pre><code>## # A tibble: 6 x 8
-##   PROPDMG PROPDMGEXP CROPDMG CROPDMGEXP INJURIES FATALITIES ALL_PROPDMG
-##     &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt; &lt;lgl&gt;         &lt;dbl&gt;      &lt;dbl&gt;       &lt;dbl&gt;
-## 1    25   K                0 NA               15          0       25000
-## 2     2.5 K                0 NA                0          0        2500
-## 3    25   K                0 NA                2          0       25000
-## 4     2.5 K                0 NA                2          0        2500
-## 5     2.5 K                0 NA                2          0        2500
-## 6     2.5 K                0 NA                6          0        2500
+<pre><code>## # A tibble: 6 x 9
+##   EVTYPE PROPDMG PROPDMGEXP CROPDMG CROPDMGEXP INJURIES FATALITIES ALL_PROPDMG
+##   &lt;chr&gt;    &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt; &lt;lgl&gt;         &lt;dbl&gt;      &lt;dbl&gt;       &lt;dbl&gt;
+## 1 TORNA~    25   K                0 NA               15          0       25000
+## 2 TORNA~     2.5 K                0 NA                0          0        2500
+## 3 TORNA~    25   K                0 NA                2          0       25000
+## 4 TORNA~     2.5 K                0 NA                2          0        2500
+## 5 TORNA~     2.5 K                0 NA                2          0        2500
+## 6 TORNA~     2.5 K                0 NA                6          0        2500
 ## # ... with 1 more variable: ALL_CROPDMG &lt;dbl&gt;</code></pre>
 <pre class="r"><code>head(filtered_cols_data %&gt;% filter(CROPDMG &gt; 0) %&gt;% select(-STATE, -BGN_DATE, -END_DATE))</code></pre>
-<pre><code>## # A tibble: 6 x 8
-##   PROPDMG PROPDMGEXP CROPDMG CROPDMGEXP INJURIES FATALITIES ALL_PROPDMG
-##     &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt; &lt;lgl&gt;         &lt;dbl&gt;      &lt;dbl&gt;       &lt;dbl&gt;
-## 1     0.1 B               10 NA                0          2   100000000
-## 2     5   M              500 NA                0          0     5000000
-## 3    25   M                1 NA                0          0    25000000
-## 4    48   M                4 NA                0          0    48000000
-## 5    20   m               10 NA                0          0    20000000
-## 6    50   K               50 NA                0          0       50000
+<pre><code>## # A tibble: 6 x 9
+##   EVTYPE PROPDMG PROPDMGEXP CROPDMG CROPDMGEXP INJURIES FATALITIES ALL_PROPDMG
+##   &lt;chr&gt;    &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt; &lt;lgl&gt;         &lt;dbl&gt;      &lt;dbl&gt;       &lt;dbl&gt;
+## 1 HURRI~     0.1 B               10 NA                0          2   100000000
+## 2 THUND~     5   M              500 NA                0          0     5000000
+## 3 HURRI~    25   M                1 NA                0          0    25000000
+## 4 HURRI~    48   M                4 NA                0          0    48000000
+## 5 HURRI~    20   m               10 NA                0          0    20000000
+## 6 THUND~    50   K               50 NA                0          0       50000
 ## # ... with 1 more variable: ALL_CROPDMG &lt;dbl&gt;</code></pre>
 </div>
 <div id="including-plots" class="section level2">

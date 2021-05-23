@@ -26,7 +26,7 @@ R packages used in the analysis:
 library(readr)
 library(ggplot2)
 library(dplyr)
-library(lubridate)
+library(stringr)
 ```
 
 From the data set we are interested only in the following columns:
@@ -42,8 +42,16 @@ Data loading & column selection (we assume that the download dataset is present 
 
 all_weather_data <- read_csv("repdata_data_StormData.csv.bz2")
 filtered_cols_data <- all_weather_data %>% select(STATE, BGN_DATE, END_DATE, 
+                                                  EVTYPE,
                                                   PROPDMG, PROPDMGEXP, CROPDMG, 
                                                   CROPDMGEXP, INJURIES, FATALITIES)
+```
+
+The EVTYPE column contains the "Summary..." rows which should be deleted. Additionaly event names are transformed to the uppercase:
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+head(filtered_cols_data %>% filter (str_detect(EVTYPE, "[Ss]ummary")) %>% select(EVTYPE))
+filtered_cols_data <- filtered_cols_data %>% filter (!str_detect(EVTYPE, "[Ss]ummary")) %>% mutate(EVTYPE = toupper(EVTYPE))
 ```
 
 According to the documentation of the dataset the COLNAME*EXP columns contain the multiplier
@@ -79,6 +87,9 @@ We can briefly verify our transformations are correct:
 head(filtered_cols_data %>% filter(PROPDMG > 0) %>% select(-STATE, -BGN_DATE, -END_DATE))
 head(filtered_cols_data %>% filter(CROPDMG > 0) %>% select(-STATE, -BGN_DATE, -END_DATE))
 ```
+
+
+
 
 
 ## Including Plots
