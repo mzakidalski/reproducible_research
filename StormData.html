@@ -390,26 +390,56 @@ library(lubridate)</code></pre>
 <li>STATE - code abbreviating the state</li>
 <li>BGN_DATE, END_DATE - event start/end dates</li>
 <li>PROPDMG / CROPDMG - describes the damage to the property/crop</li>
-<li>PROPDMGEXP / CROPDMGEXP - multipliers to the previous values (k/K for 1000, m/M for 1 000 000, b/B for 1 000 000 000) .<br />
-Data loading (we assume that the download dataset is present in the working folder):</li>
+<li>PROPDMGEXP / CROPDMGEXP - multipliers to the previous values (k/K for 1000, m/M for 1 000 000, b/B for 1 000 000 000).</li>
 </ul>
+<p>Data loading &amp; column selection (we assume that the download dataset is present in the working folder):</p>
 <pre class="r"><code>all_weather_data &lt;- read_csv(&quot;repdata_data_StormData.csv.bz2&quot;)
 filtered_cols_data &lt;- all_weather_data %&gt;% select(STATE, BGN_DATE, END_DATE, 
                                                   PROPDMG, PROPDMGEXP, CROPDMG, 
                                                   CROPDMGEXP, INJURIES, FATALITIES)</code></pre>
-</div>
-<div id="r-markdown" class="section level2">
-<h2>R Markdown</h2>
-<p>This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <a href="http://rmarkdown.rstudio.com" class="uri">http://rmarkdown.rstudio.com</a>.</p>
-<p>When you click the <strong>Knit</strong> button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:</p>
-<pre class="r"><code>summary(cars)</code></pre>
-<pre><code>##      speed           dist       
-##  Min.   : 4.0   Min.   :  2.00  
-##  1st Qu.:12.0   1st Qu.: 26.00  
-##  Median :15.0   Median : 36.00  
-##  Mean   :15.4   Mean   : 42.98  
-##  3rd Qu.:19.0   3rd Qu.: 56.00  
-##  Max.   :25.0   Max.   :120.00</code></pre>
+<p>According to the documentation of the dataset the COLNAME*EXP columns contain the multiplier for the COLNAME values. This data contains not only tidy values:</p>
+<pre class="r"><code>print( unique(filtered_cols_data$PROPDMGEXP))</code></pre>
+<pre><code>##  [1] &quot;K&quot; &quot;M&quot; NA  &quot;B&quot; &quot;m&quot; &quot;+&quot; &quot;0&quot; &quot;5&quot; &quot;6&quot; &quot;?&quot; &quot;4&quot; &quot;2&quot; &quot;3&quot; &quot;h&quot; &quot;7&quot; &quot;H&quot; &quot;-&quot; &quot;1&quot; &quot;8&quot;</code></pre>
+<pre class="r"><code>print( unique(filtered_cols_data$CROPDMGEXP))</code></pre>
+<pre><code>## [1]    NA FALSE</code></pre>
+<p>The analysis assumption is that:</p>
+<ul>
+<li>allowed multipliers are B, M (which is equivalent to m), K</li>
+<li>all other values (including NAs) are equivalent to 1.0 multiplier</li>
+</ul>
+<p>The ALL_* columns will contain the real value (in $) of damages:</p>
+<pre class="r"><code>filtered_cols_data &lt;- filtered_cols_data %&gt;%
+                          mutate(ALL_PROPDMG = case_when( endsWith(PROPDMGEXP,&quot;B&quot;)  ~ 1000000000.0*PROPDMG,
+                                                          endsWith(PROPDMGEXP, &quot;M&quot;) ~ 1000000.0*PROPDMG,
+                                                          endsWith(PROPDMGEXP, &quot;m&quot;) ~ 1000000.0*PROPDMG,
+                                                          endsWith(PROPDMGEXP, &quot;K&quot;) ~ 1000.0*PROPDMG,
+                                                          TRUE ~ 1.0*PROPDMG))
+
+# there are no multipliers for the crop-related damage
+filtered_cols_data &lt;- filtered_cols_data %&gt;% mutate(ALL_CROPDMG = CROPDMG)</code></pre>
+<p>We can briefly verify our transformations are correct:</p>
+<pre class="r"><code>head(filtered_cols_data %&gt;% filter(PROPDMG &gt; 0) %&gt;% select(-STATE, -BGN_DATE, -END_DATE))</code></pre>
+<pre><code>## # A tibble: 6 x 8
+##   PROPDMG PROPDMGEXP CROPDMG CROPDMGEXP INJURIES FATALITIES ALL_PROPDMG
+##     &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt; &lt;lgl&gt;         &lt;dbl&gt;      &lt;dbl&gt;       &lt;dbl&gt;
+## 1    25   K                0 NA               15          0       25000
+## 2     2.5 K                0 NA                0          0        2500
+## 3    25   K                0 NA                2          0       25000
+## 4     2.5 K                0 NA                2          0        2500
+## 5     2.5 K                0 NA                2          0        2500
+## 6     2.5 K                0 NA                6          0        2500
+## # ... with 1 more variable: ALL_CROPDMG &lt;dbl&gt;</code></pre>
+<pre class="r"><code>head(filtered_cols_data %&gt;% filter(CROPDMG &gt; 0) %&gt;% select(-STATE, -BGN_DATE, -END_DATE))</code></pre>
+<pre><code>## # A tibble: 6 x 8
+##   PROPDMG PROPDMGEXP CROPDMG CROPDMGEXP INJURIES FATALITIES ALL_PROPDMG
+##     &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt; &lt;lgl&gt;         &lt;dbl&gt;      &lt;dbl&gt;       &lt;dbl&gt;
+## 1     0.1 B               10 NA                0          2   100000000
+## 2     5   M              500 NA                0          0     5000000
+## 3    25   M                1 NA                0          0    25000000
+## 4    48   M                4 NA                0          0    48000000
+## 5    20   m               10 NA                0          0    20000000
+## 6    50   K               50 NA                0          0       50000
+## # ... with 1 more variable: ALL_CROPDMG &lt;dbl&gt;</code></pre>
 </div>
 <div id="including-plots" class="section level2">
 <h2>Including Plots</h2>

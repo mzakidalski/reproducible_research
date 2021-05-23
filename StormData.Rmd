@@ -34,8 +34,10 @@ From the data set we are interested only in the following columns:
 * STATE - code abbreviating the state
 * BGN_DATE, END_DATE - event start/end dates
 * PROPDMG / CROPDMG - describes the damage to the property/crop
-* PROPDMGEXP / CROPDMGEXP - multipliers to the previous values (k/K for 1000, m/M for 1 000 000, b/B for 1 000 000 000)                  .                                
-Data loading (we assume that the download dataset is present in the working folder):
+* PROPDMGEXP / CROPDMGEXP - multipliers to the previous values (k/K for 1000, m/M for 1 000 000, b/B for 1 000 000 000).                                
+
+Data loading & column selection (we assume that the download dataset is present in the working folder):
+
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
 
 all_weather_data <- read_csv("repdata_data_StormData.csv.bz2")
@@ -44,23 +46,40 @@ filtered_cols_data <- all_weather_data %>% select(STATE, BGN_DATE, END_DATE,
                                                   CROPDMGEXP, INJURIES, FATALITIES)
 ```
 
+According to the documentation of the dataset the COLNAME*EXP columns contain the multiplier
+for the COLNAME values. This data contains not only tidy values:
 
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
 
-
-
-
-
-
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+print( unique(filtered_cols_data$PROPDMGEXP))
+print( unique(filtered_cols_data$CROPDMGEXP))
 ```
+
+The analysis assumption is that:
+
+* allowed multipliers are B, M (which is equivalent to m), K
+* all other values (including NAs) are equivalent to 1.0 multiplier
+
+The ALL_* columns will contain the real value (in $) of damages:
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+filtered_cols_data <- filtered_cols_data %>%
+                          mutate(ALL_PROPDMG = case_when( endsWith(PROPDMGEXP,"B")  ~ 1000000000.0*PROPDMG,
+                                                          endsWith(PROPDMGEXP, "M") ~ 1000000.0*PROPDMG,
+                                                          endsWith(PROPDMGEXP, "m") ~ 1000000.0*PROPDMG,
+                                                          endsWith(PROPDMGEXP, "K") ~ 1000.0*PROPDMG,
+                                                          TRUE ~ 1.0*PROPDMG))
+
+# there are no multipliers for the crop-related damage
+filtered_cols_data <- filtered_cols_data %>% mutate(ALL_CROPDMG = CROPDMG)
+```
+
+We can briefly verify our transformations are correct:
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+head(filtered_cols_data %>% filter(PROPDMG > 0) %>% select(-STATE, -BGN_DATE, -END_DATE))
+head(filtered_cols_data %>% filter(CROPDMG > 0) %>% select(-STATE, -BGN_DATE, -END_DATE))
+```
+
 
 ## Including Plots
 
