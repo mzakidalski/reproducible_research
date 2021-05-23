@@ -129,3 +129,9 @@ answer_2 <- events_summary %>% arrange(desc(ALL_DMG)) %>% select (EVTYPE, ALL_DM
 head(answer_2, n=5)
 ```   
 
+We can also see a histogram of those costs:
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+answer_2 <- answer_2 %>% top_n(ALL_DMG, n=5)
+ggplot(answer_2, aes(x=EVTYPE, y=ALL_DMG)) +geom_bar(stat="identity")+
+      xlab("Event type") + ylab("Cumulative costs of events")
+```
