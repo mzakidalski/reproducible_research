@@ -47,11 +47,13 @@ filtered_cols_data <- all_weather_data %>% select(STATE, BGN_DATE, END_DATE,
                                                   CROPDMGEXP, INJURIES, FATALITIES)
 ```
 
-The EVTYPE column contains the "Summary..." rows which should be deleted. Additionaly event names are transformed to the uppercase:
+The filtered_cols_data dataframe contains the rows "Summary..." and "?" ENVTYPEs  which should be deleted. Additionally event names are transformed to the uppercase:
 
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
-head(filtered_cols_data %>% filter (str_detect(EVTYPE, "[Ss]ummary")) %>% select(EVTYPE))
-filtered_cols_data <- filtered_cols_data %>% filter (!str_detect(EVTYPE, "[Ss]ummary")) %>% mutate(EVTYPE = toupper(EVTYPE))
+head(filtered_cols_data %>% filter (str_detect(EVTYPE, "[Ss][Uu][Mm][Mm][Aa][Rr][Yy]")) %>% select(EVTYPE))
+filtered_cols_data <- filtered_cols_data %>% filter (!str_detect(EVTYPE, "[Ss][Uu][Mm][Mm][Aa][Rr][Yy]")) %>% 
+                      filter (!str_detect(EVTYPE, "\\?")) %>% 
+                      mutate(EVTYPE = toupper(EVTYPE))
 ```
 
 According to the documentation of the dataset the COLNAME*EXP columns contain the multiplier
@@ -88,16 +90,42 @@ head(filtered_cols_data %>% filter(PROPDMG > 0) %>% select(-STATE, -BGN_DATE, -E
 head(filtered_cols_data %>% filter(CROPDMG > 0) %>% select(-STATE, -BGN_DATE, -END_DATE))
 ```
 
+Finally, we prepare the summary dataframe to work further on:
 
-
-
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+events_summary <- filtered_cols_data %>% select(EVTYPE, INJURIES, FATALITIES, ALL_PROPDMG, ALL_CROPDMG) %>%
+                                         mutate(ALL_DMG = ALL_PROPDMG + ALL_CROPDMG) %>%
+                                         select(-ALL_PROPDMG, -ALL_CROPDMG) %>%
+                                         group_by(EVTYPE) %>%
+                                         summarise(across(where(is.numeric), sum))
+events_summary$EVTYPE <- as.factor(events_summary$EVTYPE)
+head(events_summary)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Results
+
+Here are the answers to the questions stated in the synopsis:
+1. We define the events which are most harmful with respect to population health as fulfilling any of the following conditions:
+   
+   
+* top five events according to the cumulative fatalities across all data from the dataset
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+answer_1a <- events_summary %>% arrange(desc(FATALITIES)) %>% select (EVTYPE, FATALITIES)
+head(answer_1a, n=5)
+```   
+   
+   
+* top five events according to the cumulative injuries across all data from the dataset
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+answer_1b <- events_summary %>% arrange(desc(INJURIES)) %>% select (EVTYPE, INJURIES)
+head(answer_1b, n=5)
+```   
+   
+2. We define the events with the top economic influence as those causing top 5 cumulative damage costs across all the dataset
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+answer_2 <- events_summary %>% arrange(desc(ALL_DMG)) %>% select (EVTYPE, ALL_DMG)
+head(answer_2, n=5)
+```   
+
